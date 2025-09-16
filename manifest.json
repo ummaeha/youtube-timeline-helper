@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Timeline Comments",
+  "version": "1.0",
+  "description": "유튜브 타임라인 댓글을 편하게 관리하고 보는 확장 프로그램",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "YouTube Timeline Comments"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/watch*"],
+      "js": ["content.js"],
+      "css": ["timeline-comments.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["timeline-comments.css"],
+      "matches": ["*://*.youtube.com/*"]
+    }
+  ]
+}

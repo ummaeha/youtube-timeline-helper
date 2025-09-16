@@ -1,0 +1,324 @@
+#timeline-comments-ui {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 350px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  font-family: 'Roboto', Arial, sans-serif;
+  font-size: 14px;
+  transition: box-shadow 0.3s, transform 0.2s;
+}
+
+#timeline-comments-ui.dragging {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  transform: scale(1.02);
+  cursor: move;
+}
+
+#timeline-comments-ui.dragging .timeline-header {
+  background: #e3f2fd;
+}
+
+#timeline-comments-ui.dragging .drag-indicator {
+  color: #1976d2;
+}
+
+.timeline-header {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e1e5e9;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.timeline-header.drag-handle {
+  cursor: move;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.timeline-header.drag-handle:hover {
+  background: #e8eaf6;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drag-indicator {
+  color: #9e9e9e;
+  font-size: 16px;
+  line-height: 1;
+  cursor: move;
+  transition: color 0.2s;
+}
+
+.drag-indicator:hover {
+  color: #666;
+}
+
+.timeline-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #202124;
+}
+
+.toggle-btn {
+  background: #1976d2;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.toggle-btn:hover {
+  background: #1565c0;
+}
+
+.timeline-content {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.timeline-controls {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e1e5e9;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nav-btn, .add-btn {
+  padding: 6px 12px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.nav-btn:hover {
+  background: #f1f3f4;
+  border-color: #5f6368;
+}
+
+
+.loading-indicator {
+  padding: 12px 16px;
+  background: #f3e5f5;
+  border-bottom: 1px solid #e1e5e9;
+  text-align: center;
+}
+
+.loading-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #7b1fa2;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e1bee7;
+  border-top: 2px solid #7b1fa2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.timeline-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.timeline-comment-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.timeline-comment-item:hover {
+  background: #f8f9fa;
+}
+
+.timeline-comment-item.active {
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+}
+
+.comment-time {
+  font-weight: 600;
+  color: #1976d2;
+  font-size: 13px;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+
+.comment-time:hover {
+  text-decoration: underline;
+}
+
+.comment-author {
+  font-weight: 500;
+  color: #202124;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.comment-content {
+  color: #5f6368;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  word-wrap: break-word;
+}
+
+.jump-btn {
+  background: #34a853;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  transition: background-color 0.2s;
+}
+
+.jump-btn:hover {
+  background: #2d7c3b;
+}
+
+
+/* 스크롤바 스타일링 */
+.timeline-content::-webkit-scrollbar,
+.timeline-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.timeline-content::-webkit-scrollbar-track,
+.timeline-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.timeline-content::-webkit-scrollbar-thumb,
+.timeline-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.timeline-content::-webkit-scrollbar-thumb:hover,
+.timeline-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  #timeline-comments-ui {
+    width: 300px;
+    right: 10px;
+    top: 10px;
+  }
+
+  .timeline-controls {
+    flex-direction: column;
+  }
+
+  .timeline-controls button {
+    margin-bottom: 4px;
+  }
+}
+
+/* 다크모드 지원 */
+@media (prefers-color-scheme: dark) {
+  #timeline-comments-ui {
+    background: #2d2d2d;
+    border-color: #404040;
+    color: #e0e0e0;
+  }
+
+  .timeline-header {
+    background: #404040;
+    border-bottom-color: #505050;
+  }
+
+  .timeline-header h3 {
+    color: #e0e0e0;
+  }
+
+  .timeline-comment-item {
+    border-bottom-color: #404040;
+  }
+
+  .timeline-comment-item:hover {
+    background: #404040;
+  }
+
+  .timeline-comment-item.active {
+    background: #1a237e;
+    border-left-color: #3f51b5;
+  }
+
+  .comment-author {
+    color: #e0e0e0;
+  }
+
+  .comment-content {
+    color: #b0b0b0;
+  }
+
+
+  .nav-btn {
+    background: #404040;
+    border-color: #505050;
+    color: #e0e0e0;
+  }
+
+  .nav-btn:hover {
+    background: #505050;
+  }
+
+  #timeline-comments-ui.dragging .timeline-header {
+    background: #424242;
+  }
+
+  .timeline-header.drag-handle:hover {
+    background: #424242;
+  }
+
+  .drag-indicator {
+    color: #757575;
+  }
+
+  .drag-indicator:hover {
+    color: #bbb;
+  }
+
+  #timeline-comments-ui.dragging .drag-indicator {
+    color: #90caf9;
+  }
+}
