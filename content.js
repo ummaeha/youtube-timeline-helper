@@ -251,11 +251,6 @@ class YouTubeTimelineComments {
     this.showLoadingIndicator(false);
 
     console.log(`Timeline comments parsed: ${this.timelineComments.length} total, ${newTimelineComments.length} new`);
-
-    // 댓글이 없고 샘플도 없으면 샘플 추가
-    if (this.timelineComments.length === 0) {
-      this.addSampleComments();
-    }
   }
 
   extractAllTimestamps(text) {
@@ -313,28 +308,6 @@ class YouTubeTimelineComments {
     return timestamps;
   }
 
-  addSampleComments() {
-    const sampleComments = [
-      { timestamp: '0:30', content: '여기가 시작 부분이에요!', author: '샘플유저1' },
-      { timestamp: '1:15', content: '이 부분 중요해요 1:15', author: '샘플유저2' },
-      { timestamp: '2:45', content: '2:45에 핵심 내용이 나와요', author: '샘플유저3' }
-    ];
-
-    sampleComments.forEach(sample => {
-      this.timelineComments.push({
-        author: sample.author,
-        content: sample.content,
-        timestamp: sample.timestamp,
-        seconds: this.timeToSeconds(sample.timestamp),
-        isCustom: false,
-        isSample: true
-      });
-    });
-
-    this.timelineComments.sort((a, b) => a.seconds - b.seconds);
-    this.updateTimelineUI();
-    console.log('Added sample comments');
-  }
 
   extractTimestamps(text) {
     const timestampRegex = /(?:(\d+):)?(\d{1,2}):(\d{2})/g;
@@ -377,14 +350,36 @@ class YouTubeTimelineComments {
         <div class="timeline-controls">
           <button id="prev-2s" class="nav-btn">◀◀ -2초</button>
           <button id="next-2s" class="nav-btn">+2초 ▶▶</button>
+          <button id="add-comment-mode" class="nav-btn add-comment-btn">댓글 추가</button>
         </div>
         <div class="loading-indicator" style="display: none;">
           <div class="loading-content">
             <div class="spinner"></div>
-            <span>댓글을 분석 중...</span>
+            <span>댓글을 로딩 중...</span>
           </div>
         </div>
         <div class="timeline-list"></div>
+        <div class="comment-input-mode" style="display: none;">
+          <div class="comment-input-header">
+            <h4>댓글 추가</h4>
+            <button id="close-comment-mode" class="close-btn">×</button>
+          </div>
+          <div class="current-time-display">
+            <span class="time-label">현재 시간:</span>
+            <span id="current-video-time" class="current-time">0:00</span>
+          </div>
+          <div class="comment-input-container">
+            <textarea 
+              id="comment-textarea" 
+              placeholder="댓글을 입력하세요... (예: 1:23 이 부분이 중요해요)"
+              rows="4"
+            ></textarea>
+            <div class="comment-input-actions">
+              <button id="submit-comment" class="submit-btn">댓글 작성</button>
+              <button id="cancel-comment" class="cancel-btn">취소</button>
+            </div>
+          </div>
+        </div>
       </div>
     `;
 
@@ -396,6 +391,18 @@ class YouTubeTimelineComments {
     if (!listContainer) return;
 
     listContainer.innerHTML = '';
+
+    if (this.timelineComments.length === 0) {
+      const emptyMessage = document.createElement('div');
+      emptyMessage.className = 'empty-message';
+      emptyMessage.innerHTML = `
+        <div class="empty-icon">💬</div>
+        <div class="empty-text">타임스탬프가 포함된 댓글이 없습니다</div>
+        <div class="empty-subtext">댓글에 시간 정보(예: 1:23, 2분 30초)를 포함해주세요</div>
+      `;
+      listContainer.appendChild(emptyMessage);
+      return;
+    }
 
     this.timelineComments.forEach((comment, index) => {
       const commentEl = document.createElement('div');
@@ -428,6 +435,26 @@ class YouTubeTimelineComments {
       if (this.video) {
         this.video.currentTime = this.video.currentTime + 2;
       }
+    });
+
+    // 댓글 추가 모드 토글
+    document.getElementById('add-comment-mode')?.addEventListener('click', () => {
+      this.toggleCommentInputMode();
+    });
+
+    // 댓글 입력 모드 닫기
+    document.getElementById('close-comment-mode')?.addEventListener('click', () => {
+      this.closeCommentInputMode();
+    });
+
+    // 댓글 취소
+    document.getElementById('cancel-comment')?.addEventListener('click', () => {
+      this.closeCommentInputMode();
+    });
+
+    // 댓글 제출
+    document.getElementById('submit-comment')?.addEventListener('click', () => {
+      this.submitComment();
     });
 
     document.addEventListener('click', (e) => {
@@ -604,6 +631,565 @@ class YouTubeTimelineComments {
     if (indicator) {
       indicator.style.display = show ? 'block' : 'none';
     }
+  }
+
+  toggleCommentInputMode() {
+    const timelineList = document.querySelector('.timeline-list');
+    const commentInputMode = document.querySelector('.comment-input-mode');
+    const addCommentBtn = document.getElementById('add-comment-mode');
+
+    if (commentInputMode.style.display === 'none') {
+      // 댓글 입력 모드로 전환
+      timelineList.style.display = 'none';
+      commentInputMode.style.display = 'block';
+      addCommentBtn.textContent = '댓글 목록';
+      addCommentBtn.classList.add('active');
+      
+      // 현재 시간 업데이트
+      this.updateCurrentTimeDisplay();
+      
+      // 주기적으로 시간 업데이트
+      this.timeUpdateInterval = setInterval(() => {
+        this.updateCurrentTimeDisplay();
+      }, 1000);
+    } else {
+      this.closeCommentInputMode();
+    }
+  }
+
+  closeCommentInputMode() {
+    const timelineList = document.querySelector('.timeline-list');
+    const commentInputMode = document.querySelector('.comment-input-mode');
+    const addCommentBtn = document.getElementById('add-comment-mode');
+
+    timelineList.style.display = 'block';
+    commentInputMode.style.display = 'none';
+    addCommentBtn.textContent = '댓글 추가';
+    addCommentBtn.classList.remove('active');
+
+    // 시간 업데이트 인터벌 정리
+    if (this.timeUpdateInterval) {
+      clearInterval(this.timeUpdateInterval);
+      this.timeUpdateInterval = null;
+    }
+
+    // 입력창 초기화
+    const textarea = document.getElementById('comment-textarea');
+    if (textarea) {
+      textarea.value = '';
+    }
+  }
+
+  updateCurrentTimeDisplay() {
+    if (!this.video) return;
+
+    const currentTimeEl = document.getElementById('current-video-time');
+    if (currentTimeEl) {
+      const currentTime = this.video.currentTime;
+      const formattedTime = this.formatTime(currentTime);
+      currentTimeEl.textContent = formattedTime;
+    }
+  }
+
+  async submitComment() {
+    const textarea = document.getElementById('comment-textarea');
+    const commentText = textarea.value.trim();
+
+    if (!commentText) {
+      alert('댓글 내용을 입력해주세요.');
+      return;
+    }
+
+    if (!this.video) {
+      alert('비디오를 찾을 수 없습니다.');
+      return;
+    }
+
+    try {
+      // 댓글 섹션으로 스크롤
+      await this.scrollToCommentsSection();
+      
+      // 잠시 대기
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // YouTube 댓글 작성란 찾기
+      const commentBox = await this.findYouTubeCommentBox();
+      if (!commentBox) {
+        alert('YouTube 댓글 작성란을 찾을 수 없습니다. 댓글 섹션으로 스크롤해주세요.');
+        return;
+      }
+
+      // 현재 시간을 댓글 앞에 추가
+      const currentTime = this.formatTime(this.video.currentTime);
+      const fullCommentText = `${currentTime} ${commentText}`;
+
+      // 댓글 작성란에 텍스트 입력
+      await this.fillCommentBox(commentBox, fullCommentText);
+
+      // 댓글 작성 버튼 클릭
+      await this.clickCommentSubmitButton();
+
+      // 성공 메시지
+      alert('댓글이 작성되었습니다!');
+      
+      // 입력 모드 닫기
+      this.closeCommentInputMode();
+
+    } catch (error) {
+      console.error('댓글 작성 중 오류:', error);
+      alert('댓글 작성에 실패했습니다. 다시 시도해주세요.');
+    }
+  }
+
+  async findYouTubeCommentBox() {
+    // 실제 YouTube DOM 구조 기반 selector들 (2025년 1월 기준)
+    // 먼저 placeholder area를 찾아서 활성화시키고, 그 다음에 contenteditable을 찾는다
+
+    // 1단계: placeholder area 선택자들
+    const placeholderSelectors = [
+      '#placeholder-area',
+      'ytd-comment-simplebox-renderer #placeholder-area',
+      'yt-formatted-string#simplebox-placeholder',
+      'ytd-comment-simplebox-renderer yt-formatted-string[role="textbox"]',
+      '#simplebox-placeholder',
+      '[role="textbox"][tabindex="0"]'
+    ];
+
+    // 2단계: 활성화된 후 나타나는 contenteditable 선택자들
+    const contentEditableSelectors = [
+      // 가장 정확한 selector - 실제 DOM 구조 기반
+      'yt-formatted-string#contenteditable-textarea #contenteditable-root',
+      'ytd-commentbox yt-formatted-string #contenteditable-root',
+      'yt-formatted-string[id="contenteditable-textarea"] #contenteditable-root',
+
+      // ID 기반 (가장 안정적)
+      '#contenteditable-root[contenteditable="true"]',
+      '#contenteditable-root',
+
+      // 실제 DOM 경로 기반
+      'ytd-commentbox ytd-emoji-input yt-user-mention-autosuggest-input yt-formatted-string #contenteditable-root',
+      'ytd-commentbox ytd-emoji-input #contenteditable-root',
+      'ytd-emoji-input yt-formatted-string #contenteditable-root',
+
+      // aria-label 기반 (한국어/영어)
+      'div[contenteditable="true"][aria-label*="댓글 추가"]',
+      'div[contenteditable="true"][aria-label*="Add a comment"]',
+      'div[contenteditable="true"][aria-label*="공개 댓글"]',
+      'div[contenteditable="true"][aria-label*="Add a public comment"]',
+
+      // 클래스와 속성 조합
+      'div[contenteditable="true"].style-scope.yt-formatted-string',
+      '.style-scope.yt-formatted-string div[contenteditable="true"]',
+
+      // 폴백 selector들
+      'ytd-commentbox div[contenteditable="true"]',
+      'ytd-comment-simplebox-renderer div[contenteditable="true"]',
+
+      // 댓글 영역 내의 모든 contenteditable
+      '#comments div[contenteditable="true"]',
+      'ytd-comments div[contenteditable="true"]',
+
+      // 최후의 수단
+      'div[contenteditable="true"]:not([aria-hidden="true"])'
+    ];
+
+    console.log('Searching for YouTube comment input in 2 steps...');
+
+    // 1단계: placeholder area 활성화 시도
+    let placeholderActivated = false;
+    for (const selector of placeholderSelectors) {
+      const placeholderElements = document.querySelectorAll(selector);
+      console.log(`Placeholder selector "${selector}" found ${placeholderElements.length} elements`);
+
+      for (const placeholderEl of placeholderElements) {
+        if (placeholderEl.offsetParent !== null) {
+          console.log('Attempting to activate placeholder:', selector, placeholderEl);
+
+          // placeholder 영역 클릭
+          placeholderEl.click();
+          placeholderEl.focus();
+
+          // 약간의 지연 후 contenteditable이 나타나는지 확인
+          await new Promise(resolve => setTimeout(resolve, 500));
+          placeholderActivated = true;
+          break;
+        }
+      }
+      if (placeholderActivated) break;
+    }
+
+    // 2단계: contenteditable 요소 찾기
+    const selectors = contentEditableSelectors;
+
+    console.log('Searching for comment input box with', selectors.length, 'selectors');
+
+    for (const selector of selectors) {
+      const elements = document.querySelectorAll(selector);
+      console.log(`Selector "${selector}" found ${elements.length} elements`);
+
+      for (const element of elements) {
+        console.log('Checking element:', {
+          selector,
+          tagName: element.tagName,
+          contentEditable: element.contentEditable,
+          ariaLabel: element.getAttribute('aria-label'),
+          placeholder: element.getAttribute('placeholder'),
+          isVisible: element.offsetParent !== null,
+          isCommentInput: this.isCommentInputElement(element)
+        });
+
+        // 보이는 요소이고, 댓글 입력과 관련된 요소인지 확인
+        if (element.offsetParent !== null && this.isCommentInputElement(element)) {
+          console.log('Found comment input element:', selector, element);
+          return element;
+        }
+      }
+    }
+
+    console.log('No comment input element found after checking all selectors');
+    return null;
+  }
+
+  isCommentInputElement(element) {
+    // 더 정확한 댓글 입력 요소 검증 로직
+    if (!element || element.disabled) return false;
+
+    const text = element.textContent || element.innerText || '';
+    const placeholder = element.getAttribute('placeholder') || '';
+    const ariaLabel = element.getAttribute('aria-label') || '';
+    const dataPlaceholder = element.getAttribute('data-placeholder') || '';
+    const role = element.getAttribute('role') || '';
+    const id = element.getAttribute('id') || '';
+
+    // 1. 편집 가능 여부 확인
+    const isEditable = element.contentEditable === 'true' || role === 'textbox';
+    if (!isEditable) return false;
+
+    // 2. 가시성 확인
+    const isVisible = element.offsetParent !== null &&
+                      element.offsetWidth > 10 &&
+                      element.offsetHeight > 10 &&
+                      !element.hidden &&
+                      element.style.display !== 'none';
+    if (!isVisible) return false;
+
+    // 3. 댓글 섹션 내부에 있는지 확인 (가장 중요)
+    const isInCommentSection = element.closest('ytd-comment-simplebox-renderer') ||
+                               element.closest('ytd-commentbox') ||
+                               element.closest('yt-commentbox') ||
+                               element.closest('#comments') ||
+                               element.closest('ytd-comments');
+
+    // 4. 댓글 관련 키워드 확인
+    const commentKeywords = [
+      '댓글', 'comment', 'add a comment', '댓글 추가', '댓글을 추가',
+      '공개 댓글', 'public comment', 'add a public comment',
+      '의견을 추가', 'share your thoughts', 'thoughts'
+    ];
+
+    const allText = (text + ' ' + placeholder + ' ' + ariaLabel + ' ' + dataPlaceholder + ' ' + id).toLowerCase();
+
+    const hasCommentKeyword = commentKeywords.some(keyword =>
+      allText.includes(keyword.toLowerCase())
+    );
+
+    // 5. 특정 ID나 클래스 확인
+    const hasCommentId = id.includes('content') || id.includes('comment') || id.includes('placeholder');
+
+    // 모든 조건을 종합하여 판단
+    return isInCommentSection && (hasCommentKeyword || hasCommentId || allText.includes('comment'));
+  }
+
+  async fillCommentBox(commentBox, text) {
+    try {
+      console.log('Filling comment box with text:', text);
+
+      // 1. 포커스 주기
+      commentBox.focus();
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // 2. 기존 내용 클리어
+      commentBox.textContent = '';
+      commentBox.innerText = '';
+
+      // 3. 텍스트 입력을 위한 여러 방법 시도
+      await this.insertTextIntoElement(commentBox, text);
+
+      // 4. 입력 이벤트 발생시켜서 YouTube가 인식하도록 함
+      this.triggerInputEvents(commentBox);
+
+      // 5. 약간의 지연으로 UI 업데이트 대기
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      console.log('Comment box filled successfully');
+
+    } catch (error) {
+      console.error('Error filling comment box:', error);
+      throw error;
+    }
+  }
+
+  async insertTextIntoElement(element, text) {
+    console.log('Inserting text into element:', element, text);
+
+    // 방법 1: 직접 텍스트 설정 (가장 확실한 방법)
+    try {
+      element.focus();
+      element.textContent = text;
+      element.innerText = text;
+
+      // innerHTML도 설정 (YouTube가 이를 인식할 수 있도록)
+      element.innerHTML = text;
+
+      console.log('Direct text setting successful');
+      return;
+    } catch (e) {
+      console.log('Direct text setting failed, trying other methods');
+    }
+
+    // 방법 2: Input 이벤트와 함께 텍스트 설정
+    try {
+      element.focus();
+
+      // 텍스트를 한 글자씩 입력하는 시뮬레이션
+      element.textContent = '';
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        element.textContent += char;
+
+        // input 이벤트 발생
+        const inputEvent = new InputEvent('input', {
+          data: char,
+          inputType: 'insertText',
+          bubbles: true,
+          cancelable: true
+        });
+        element.dispatchEvent(inputEvent);
+
+        await new Promise(resolve => setTimeout(resolve, 5));
+      }
+
+      console.log('Character-by-character insertion successful');
+      return;
+    } catch (e) {
+      console.log('Character insertion failed, trying clipboard method');
+    }
+
+    // 방법 3: Clipboard API 사용
+    try {
+      element.focus();
+
+      // 클립보드에 텍스트 복사
+      await navigator.clipboard.writeText(text);
+
+      // 붙여넣기 이벤트 시뮬레이션
+      const pasteEvent = new ClipboardEvent('paste', {
+        clipboardData: new DataTransfer(),
+        bubbles: true,
+        cancelable: true
+      });
+
+      // clipboardData에 텍스트 설정
+      pasteEvent.clipboardData.setData('text/plain', text);
+      element.dispatchEvent(pasteEvent);
+
+      console.log('Clipboard method successful');
+      return;
+    } catch (e) {
+      console.error('All text insertion methods failed:', e);
+      // 최후의 수단으로 직접 설정
+      element.textContent = text;
+    }
+  }
+
+  triggerInputEvents(element) {
+    console.log('Triggering input events for YouTube recognition');
+
+    // YouTube가 텍스트 변경을 인식하도록 다양한 이벤트 발생
+    const events = [
+      // 포커스 이벤트
+      new FocusEvent('focus', { bubbles: true, cancelable: true }),
+
+      // 입력 이벤트
+      new InputEvent('input', {
+        inputType: 'insertText',
+        bubbles: true,
+        cancelable: true
+      }),
+
+      // 키보드 이벤트
+      new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        cancelable: true
+      }),
+
+      new KeyboardEvent('keyup', {
+        key: 'Enter',
+        bubbles: true,
+        cancelable: true
+      }),
+
+      // 변경 이벤트
+      new Event('change', { bubbles: true, cancelable: true }),
+
+      // 커스텀 이벤트 (YouTube가 사용할 수 있는)
+      new CustomEvent('textchange', { bubbles: true, cancelable: true })
+    ];
+
+    events.forEach((event, index) => {
+      setTimeout(() => {
+        element.dispatchEvent(event);
+        console.log(`Triggered event ${index + 1}/${events.length}:`, event.type);
+      }, index * 50);
+    });
+  }
+
+  async clickCommentSubmitButton() {
+    // 실제 YouTube DOM 구조 기반 버튼 selector들 (2025년 1월 기준)
+    const submitSelectors = [
+      // 가장 정확한 selector - 실제 DOM 구조 기반
+      'ytd-commentbox ytd-button-renderer#submit-button button',
+      'ytd-button-renderer#submit-button yt-button-shape button',
+      'ytd-commentbox #submit-button button',
+
+      // ID 기반 (가장 안정적)
+      '#submit-button button',
+      'ytd-button-renderer#submit-button button',
+
+      // 실제 DOM 경로 기반
+      'ytd-commentbox #footer #buttons ytd-button-renderer#submit-button button',
+      'ytd-commentbox #buttons ytd-button-renderer#submit-button button',
+      '#buttons ytd-button-renderer#submit-button button',
+
+      // aria-label 기반 (한국어/영어)
+      'ytd-commentbox button[aria-label*="댓글"]',
+      'ytd-commentbox button[aria-label*="Comment"]',
+      'button[aria-label="댓글"]',
+      'button[aria-label="Comment"]',
+
+      // 클래스 기반
+      'button.yt-spec-button-shape-next--filled:not([disabled])',
+      'ytd-commentbox button.yt-spec-button-shape-next--filled',
+
+      // 특정 클래스 조합 (실제 DOM에서 관찰된 패턴)
+      'ytd-commentbox .yt-spec-button-shape-next--filled button',
+      'ytd-commentbox yt-button-shape button',
+
+      // 폴백 selector들
+      'ytd-commentbox ytd-button-renderer button:not([disabled])',
+      'ytd-comment-simplebox-renderer ytd-button-renderer button',
+
+      // 댓글 영역 내의 활성 버튼들
+      '#comments ytd-button-renderer button:not([disabled])',
+      'ytd-comments ytd-button-renderer button:not([disabled])',
+
+      // 최후의 수단 - 댓글 영역의 모든 버튼
+      'ytd-commentbox button:not([disabled])',
+      '#comments button:not([disabled])'
+    ];
+
+    console.log('Searching for comment submit button with', submitSelectors.length, 'selectors');
+
+    for (const selector of submitSelectors) {
+      const buttons = document.querySelectorAll(selector);
+      console.log(`Selector "${selector}" found ${buttons.length} buttons`);
+
+      for (const button of buttons) {
+        console.log('Checking button:', {
+          selector,
+          tagName: button.tagName,
+          textContent: button.textContent?.trim(),
+          ariaLabel: button.getAttribute('aria-label'),
+          disabled: button.disabled,
+          isVisible: button.offsetParent !== null,
+          isSubmitButton: this.isCommentSubmitButton(button)
+        });
+
+        if (this.isCommentSubmitButton(button)) {
+          console.log('Found comment submit button:', selector, button);
+          button.click();
+          return;
+        }
+      }
+    }
+
+    console.log('No comment submit button found after checking all selectors');
+    throw new Error('댓글 제출 버튼을 찾을 수 없습니다. 댓글 섹션으로 스크롤해주세요.');
+  }
+
+  isCommentSubmitButton(button) {
+    // 실제 YouTube DOM 구조 기반 검증 로직
+    if (!button || button.disabled) return false;
+
+    const text = (button.textContent || button.innerText || '').trim();
+    const ariaLabel = button.getAttribute('aria-label') || '';
+    const className = button.className || '';
+
+    // 1. 가시성 및 클릭 가능성 확인
+    const isClickable = button.offsetParent !== null &&
+                        button.offsetWidth > 0 &&
+                        button.offsetHeight > 0 &&
+                        !button.hidden &&
+                        button.style.display !== 'none';
+    if (!isClickable) return false;
+
+    // 2. ytd-commentbox 내부에 있는지 확인 (실제 DOM 구조 기반)
+    const isInCommentBox = button.closest('ytd-commentbox') ||
+                          button.closest('ytd-comment-simplebox-renderer') ||
+                          button.closest('#comments');
+
+    if (!isInCommentBox) return false;
+
+    // 3. submit-button ID가 있는 ytd-button-renderer 내부인지 확인
+    const submitButtonRenderer = button.closest('ytd-button-renderer#submit-button');
+    if (submitButtonRenderer) return true;
+
+    // 4. 댓글 제출 관련 텍스트나 aria-label 확인
+    const submitKeywords = ['댓글', 'comment'];
+    const hasSubmitKeyword = submitKeywords.some(keyword =>
+      text.toLowerCase().includes(keyword.toLowerCase()) ||
+      ariaLabel.toLowerCase().includes(keyword.toLowerCase())
+    );
+
+    // 5. 실제 DOM에서 관찰된 클래스 패턴 확인
+    const hasSubmitButtonClass = className.includes('yt-spec-button-shape-next--filled') ||
+                                 button.closest('.yt-spec-button-shape-next--filled');
+
+    // 6. #buttons 영역 내부에 있는지 확인
+    const isInButtonsArea = button.closest('#buttons');
+
+    // 모든 조건을 종합하여 판단
+    return isInCommentBox && (submitButtonRenderer || (hasSubmitKeyword && (hasSubmitButtonClass || isInButtonsArea)));
+  }
+
+  async scrollToCommentsSection() {
+    // 댓글 섹션을 찾아서 스크롤
+    const commentSelectors = [
+      '#comments',
+      'ytd-comments',
+      '#contents.ytd-item-section-renderer',
+      'ytd-comments-header-renderer'
+    ];
+
+    for (const selector of commentSelectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        console.log('Scrolling to comments section:', selector);
+        element.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+        return;
+      }
+    }
+
+    // 댓글 섹션을 찾지 못한 경우 페이지 하단으로 스크롤
+    console.log('Comments section not found, scrolling to bottom');
+    window.scrollTo({
+      top: document.body.scrollHeight,
+      behavior: 'smooth'
+    });
   }
 }
 
